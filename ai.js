@@ -1,8 +1,9 @@
-// forum-brain.js
 require('dotenv').config();
 const axios = require('axios');
 const sqlite3 = require('sqlite3').verbose();
 const natural = require('natural');
+const cron = require('node-cron');
+const readlineSync = require('readline-sync');
 
 const FLARUM_URL = process.env.FLARUM_URL;
 const USERNAME = process.env.USERNAME;
@@ -15,6 +16,7 @@ let knowledgeBase = [];
 
 const db = new sqlite3.Database('forum_ai.db');
 
+// Initialize SQLite DB
 function initializeDB() {
   db.run(`
     CREATE TABLE IF NOT EXISTS posts (
@@ -32,8 +34,8 @@ async function loginFlarum(username, password) {
   return res.data.token;
 }
 
-async function fetchDiscussions(token) {
-  const res = await axios.get(`${FLARUM_URL}/api/discussions?page[limit]=10`, {
+async function fetchDiscussions(token, page = 1) {
+  const res = await axios.get(`${FLARUM_URL}/api/discussions?page[offset]=${(page - 1) * 20}`, {
     headers: { Authorization: `Token ${token}` },
   });
   return res.data.data;
@@ -46,8 +48,8 @@ async function fetchPosts(discussionId, token) {
 
   const included = res.data.included || [];
   return included
-    .filter((item) => item.type === 'posts')
-    .map((post) => ({
+    .filter(item => item.type === 'posts')
+    .map(post => ({
       id: post.id,
       content: post.attributes.content,
       discussionId,
@@ -77,7 +79,7 @@ function getSimilarityScores(input) {
 }
 
 async function postReply(token, discussionId, content) {
-  const fullContent = content + "\n\nTHIS MESSAGE WAS SENT VIA KRXZY_KRXZY'S AI ASSISTANT";
+  const fullContent = `${content}\n\nTHIS MESSAGE WAS SENT VIA KRXZY_KRXZY'S AI ASSISTANT`;
   await axios.post(
     `${FLARUM_URL}/api/posts`,
     {
@@ -124,17 +126,19 @@ async function learnAndRespond(token) {
   }
 }
 
-(async () => {
-  initializeDB();
-  console.log("🤖 Starting Billion Dollar Forum Brain...");
+// Set up cron job to check every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+  console.log('🔄 Checking for new content...');
   const token = await loginFlarum(USERNAME, PASSWORD);
-
-  // Initial load and learn
   await learnAndRespond(token);
+});
 
-  // Poll every 5 minutes
-  setInterval(async () => {
-    console.log("🔄 Checking for new content...");
-    await learnAndRespond(token);
-  }, 5 * 60 * 1000);
+// Initialize
+initializeDB();
+console.log("🤖 Starting Billion Dollar Forum Brain...");
+
+// Initial learning pass
+(async () => {
+  const token = await loginFlarum(USERNAME, PASSWORD);
+  await learnAndRespond(token);
 })();

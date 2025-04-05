@@ -4,8 +4,8 @@ import json
 
 # Flarum Forum URL and Login Credentials
 flarum_url = 'https://sch.flarum.cloud'
-username = 'your_username'
-password = 'your_password'
+username = 'AI-Assistant-kRxZy_kRxZy'
+password = 'Husseinmonzer123'
 
 # Initialize GPT-2 for text generation (you can change this model if needed)
 generator = pipeline('text-generation', model='gpt2')
